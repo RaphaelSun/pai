@@ -1,6 +1,6 @@
 import c from 'classnames';
-import React, {useContext, useMemo, useLayoutEffect} from 'react';
-import {ColumnActionsMode, DefaultButton, FontClassNames, Link, mergeStyles, Selection, ShimmeredDetailsList, Icon, ColorClassNames, FontSizes, FontWeights} from 'office-ui-fabric-react';
+import React, {useState, useContext, useMemo, useLayoutEffect} from 'react';
+import {ColumnActionsMode, DefaultButton, PrimaryButton, FontClassNames, Link, mergeStyles, Selection, ShimmeredDetailsList, Icon, ColorClassNames, FontSizes, FontWeights} from 'office-ui-fabric-react';
 import {isNil} from 'lodash';
 import {DateTime} from 'luxon';
 
@@ -10,6 +10,8 @@ import Filter from './Filter';
 import Ordering from './Ordering';
 import StatusBadge from '../../../../components/status-badge';
 import {getJobDurationString} from '../../../../components/util/job';
+import { ChoiceGroup, IChoiceGroupOption } from 'office-ui-fabric-react/lib/ChoiceGroup';
+import { Panel, PanelType } from 'office-ui-fabric-react/lib/Panel';
 
 import t from '../../../../components/tachyons.scss';
 
@@ -21,7 +23,11 @@ const zeroPaddingClass = mergeStyles({
 });
 
 export default function Table() {
-  const {stopJob, filteredJobs, setSelectedJobs, filter, ordering, setOrdering, pagination, setFilter} = useContext(Context);
+  const {stopJob, filteredJobs, setSelectedJobs, selectedJobs, filter, ordering, setOrdering, pagination, setFilter} = useContext(Context);
+  const [showPanel, setShowPanel] = useState(false);
+  const [currentJob, setCurrentJob] = useState(null);
+  const [stopJobReason, setStopJobReason] = useState(null);
+  const isAdmin = cookies.get('admin');
 
   // workaround for fabric's bug
   // https://github.com/OfficeDev/office-ui-fabric-react/issues/5280#issuecomment-489619108
@@ -187,11 +193,12 @@ export default function Table() {
        */
       function onClick(event) {
         event.stopPropagation();
-        stopJob(job);
+        setShowPanel(true);
+        setCurrentJob(job);
       }
 
       const statusText = getStatusText(job);
-      const disabled = statusText !== 'Waiting' && statusText !== 'Running';
+      const disabled = statusText !== 'Waiting' && statusText !== 'Running' && statusText !== 'Succeeded' || selectedJobs.length >= 2;
       return (
         <div style={{height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center'}} data-selection-disabled>
           <DefaultButton
@@ -226,6 +233,70 @@ export default function Table() {
     actionsColumn,
   ];
 
+  const options = isAdmin ? [
+    {
+      key: 'A',
+      text: 'Stop abnormal jobs'
+    },
+    {
+      key: 'B',
+      text: 'Release resource for higher priority jobs',
+    },
+    {
+      key: 'C',
+      text: 'System maintance',
+    },
+    {
+      key: 'D',
+      text: 'Etc',
+    },
+  ] : [
+    {
+      key: 'A',
+      text: 'Early stop'
+    },
+    {
+      key: 'B',
+      text: 'Need to change the command or config',
+    },
+    {
+      key: 'C',
+      text: 'etc',
+    },
+  ]
+
+  function onDismiss(evevt) {
+    event.stopPropagation();
+    setShowPanel(false);
+  }
+
+  function onStopJob(evevt) {
+    event.stopPropagation();
+    if (!stopJobReason) {
+      alert('You have not selected options, please select one for stop job.');
+      return;
+    }
+    stopJob(currentJob);
+  }
+
+  function onChange(ev, option) {
+    setStopJobReason(option);
+  }
+
+  function onRenderFooterContent() {
+    return (
+      <div>
+        <PrimaryButton onClick={onStopJob} style={{ marginRight: '8px' }}>
+        Save
+      </PrimaryButton>
+      <DefaultButton onClick={onDismiss} >
+        Cancel
+      </DefaultButton>
+      </div>
+    );
+  };
+
+
   if (!isNil(filteredJobs) && filteredJobs.length === 0) {
     return (
       <div className={c(t.h100, t.flex, t.itemsCenter, t.justifyCenter)}>
@@ -245,14 +316,39 @@ export default function Table() {
   } else {
     const items = pagination.apply(ordering.apply(filteredJobs || []));
     return (
-      <ShimmeredDetailsList
-        items={items}
-        setKey="key"
-        columns={columns}
-        enableShimmer={isNil(filteredJobs)}
-        shimmerLines={pagination.itemsPerPage}
-        selection={selection}
-      />
+      <div>
+        <ShimmeredDetailsList
+          items={items}
+          setKey="key"
+          columns={columns}
+          enableShimmer={isNil(filteredJobs)}
+          shimmerLines={pagination.itemsPerPage}
+          selection={selection}
+        />
+        <Panel
+          isOpen={showPanel}
+          onDismiss={onDismiss}
+          type={PanelType.custom}
+          customWidth='400px'
+          headerText="Do you want to stop job ?"
+          closeButtonAriaLabel="Close"
+          onRenderFooterContent={onRenderFooterContent}
+          hasCloseButton={false}
+          isLightDismiss={true}
+          styles={{
+            root: {marginTop: '50px'},
+          }}
+        >
+          <div>Job name: <Link>{currentJob ? currentJob.name : ''}</Link></div>
+          <ChoiceGroup
+            defaultSelectedKey={stopJobReason ? stopJobReason.key : ''}
+            label="Please pick one reason why you want to stop this job."
+            onChange={onChange}
+            required={true}
+            options={options}
+          />
+        </Panel>
+      </div>
     );
   }
 }
