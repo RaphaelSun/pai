@@ -10,8 +10,8 @@ import Filter from './Filter';
 import Ordering from './Ordering';
 import StatusBadge from '../../../../components/status-badge';
 import {getJobDurationString} from '../../../../components/util/job';
-import { ChoiceGroup, IChoiceGroupOption } from 'office-ui-fabric-react/lib/ChoiceGroup';
-import { Panel, PanelType } from 'office-ui-fabric-react/lib/Panel';
+import {ChoiceGroup} from 'office-ui-fabric-react/lib/ChoiceGroup';
+import {Panel, PanelType} from 'office-ui-fabric-react/lib/Panel';
 
 import t from '../../../../components/tachyons.scss';
 
@@ -198,7 +198,7 @@ export default function Table() {
       }
 
       const statusText = getStatusText(job);
-      const disabled = statusText !== 'Waiting' && statusText !== 'Running' && statusText !== 'Succeeded' || selectedJobs.length >= 2;
+      const disabled = statusText !== 'Waiting' && statusText !== 'Running' || selectedJobs.length >= 2;
       return (
         <div style={{height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center'}} data-selection-disabled>
           <DefaultButton
@@ -265,13 +265,11 @@ export default function Table() {
     },
   ]
 
-  function onDismiss(evevt) {
-    event.stopPropagation();
+  function onDismiss() {
     setShowPanel(false);
   }
 
-  function onStopJob(evevt) {
-    event.stopPropagation();
+  function onStopJob() {
     if (!stopJobReason) {
       alert('You have not selected options, please select one for stop job.');
       return;
