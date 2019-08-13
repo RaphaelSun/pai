@@ -30,3 +30,5 @@ __pycache__
 .editorconfig
 /subprojects/GOPATH/bin/
 /subprojects/GOPATH/pkg/
+/src/kube-runtime/src/GOPATH/bin/
+/src/kube-runtime/src/GOPATH/pkg/
